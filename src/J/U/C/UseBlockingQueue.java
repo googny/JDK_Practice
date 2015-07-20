@@ -21,7 +21,7 @@ import java.util.concurrent.Executors;
 public class UseBlockingQueue {
     public static void main(String[] args) {
         BlockingQueue<File> queue = new ArrayBlockingQueue<>(100);
-        File file = new File("E:\\tonghaoqi\\Workspaces\\SwordToOffer\\src");
+        File file = new File("E:\\tonghaoqi\\Workspaces\\LeetCode_j\\src");
         ExecutorService searchThreadPool = Executors.newFixedThreadPool(10);
         Producer producer = new Producer(file, queue);
         new Thread(producer).start();
@@ -36,6 +36,7 @@ public class UseBlockingQueue {
 class Producer implements Runnable {
     private File file;
     private BlockingQueue<File> queue;
+    public static File DUMMY = new File("");
 
     public Producer(File file, BlockingQueue<File> queue) {
         this.file = file;
@@ -44,29 +45,26 @@ class Producer implements Runnable {
 
     @Override
     public void run() {
-        enumFile(file,queue);
+        try {
+            enumFile(file, queue);
+            queue.put(DUMMY);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
     }
 
-    private void enumFile(File file, BlockingQueue queue) {
+    private void enumFile(File file, BlockingQueue queue) throws InterruptedException {
         if (file.isDirectory()) {
             File[] files = file.listFiles();
             for (File subFile : files) {
                 if (subFile.isDirectory()) {
                     enumFile(subFile, queue);
                 } else {
-                    try {
-                        queue.put(subFile);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
+                    queue.put(subFile);
                 }
             }
         } else {
-            try {
-                queue.put(file);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
+            queue.put(file);
         }
     }
 }
@@ -83,8 +81,14 @@ class Customer implements Runnable {
     @Override
     public void run() {
         try {
-            File file = (File) queue.take();
-            searchText(file, text);
+            while (true) {
+                File file = (File) queue.take();
+                if (file.equals(Producer.DUMMY)) {
+                    queue.put(file);
+                    break;
+                }
+                searchText(file, text);
+            }
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
